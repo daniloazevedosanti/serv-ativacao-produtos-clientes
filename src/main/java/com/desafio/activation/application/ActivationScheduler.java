@@ -1,6 +1,5 @@
 package com.desafio.activation.application;
 
-import com.desafio.activation.config.DispatchProperties;
 import com.desafio.activation.infrastructure.persistence.ActivationRequestRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.PageRequest;

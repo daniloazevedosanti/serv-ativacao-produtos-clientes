@@ -5,6 +5,7 @@ import com.desafio.activation.application.DuplicateExternalIdException;
 import com.desafio.activation.domain.InvalidStatusTransitionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -59,16 +60,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 ex.getMessage(), request);
     }
 
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    ResponseEntity<Object> typeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
-        var body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
-                "Valor inválido para o parâmetro '" + ex.getName() + "'.");
-        body.setType(ProblemTypes.VALIDATION);
-        body.setTitle("Dados inválidos");
-        body.setProperty("errors", List.of(Map.of("field", ex.getName(), "message", "valor inválido")));
-        return handleExceptionInternal(ex, body, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
-    }
-
     @ExceptionHandler(Exception.class)
     ResponseEntity<Object> unexpected(Exception ex, WebRequest request) {
         log.error("Erro inesperado em {}", path(request), ex);
@@ -98,6 +89,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         "message", String.valueOf(e.getDefaultMessage()))))
                 .toList();
         var body = validationProblem(errors);
+        return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
+    }
+
+    /** Ex.: id que não é UUID, status inexistente no filtro, page não numérico. */
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+                                                        HttpStatusCode status, WebRequest request) {
+        String name = ex instanceof MethodArgumentTypeMismatchException m ? m.getName() : ex.getPropertyName();
+        var body = validationProblem(List.of(Map.of("field", String.valueOf(name), "message", "valor inválido")));
         return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 

@@ -1,4 +1,4 @@
-package com.desafio.activation.config;
+package com.desafio.activation.application;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;

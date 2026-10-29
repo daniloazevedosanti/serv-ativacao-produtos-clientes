@@ -1,6 +1,6 @@
 package com.desafio.activation.config;
 
-import com.desafio.activation.application.ActivationProvider;
+import com.desafio.activation.infrastructure.provider.ActivationProvider;
 import com.desafio.activation.infrastructure.provider.HttpActivationProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +19,7 @@ public class ProviderClientConfig {
      * Timeouts explícitos: sem eles, uma lentidão do provedor seguraria threads indefinidamente.
      */
     @Bean
-    ActivationProvider activationProvider(RestClient.Builder builder, ProviderProperties properties) {
+    public ActivationProvider activationProvider(RestClient.Builder builder, ProviderProperties properties) {
         var httpClient = HttpClient.newBuilder()
                 .connectTimeout(properties.connectTimeout())
                 .version(HttpClient.Version.HTTP_1_1)

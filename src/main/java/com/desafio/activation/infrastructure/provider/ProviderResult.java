@@ -1,4 +1,4 @@
-package com.desafio.activation.application;
+package com.desafio.activation.infrastructure.provider;
 
 import java.time.Duration;
 

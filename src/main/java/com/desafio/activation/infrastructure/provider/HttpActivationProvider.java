@@ -1,8 +1,5 @@
 package com.desafio.activation.infrastructure.provider;
 
-import com.desafio.activation.application.ActivationProvider;
-import com.desafio.activation.application.ProviderActivationCommand;
-import com.desafio.activation.application.ProviderResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;

@@ -1,5 +1,6 @@
 package com.desafio.activation.config;
 
+import com.desafio.activation.application.DispatchProperties;
 import com.desafio.activation.application.RetryPolicy;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
