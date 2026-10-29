@@ -1,0 +1,26 @@
+{
+  "mappings": [
+    {
+      "priority": 1,
+      "scenarioName": "flaky",
+      "requiredScenarioState": "Started",
+      "newScenarioState": "Recovered",
+      "request": {
+        "method": "POST", "url": "/provider/v1/activate",
+        "bodyPatterns": [ { "matchesJsonPath": "$[?(@.productCode =~ /FLAKY.*/)]" } ]
+      },
+      "response": { "status": 502 }
+    },
+    {
+      "priority": 1,
+      "scenarioName": "flaky",
+      "requiredScenarioState": "Recovered",
+      "newScenarioState": "Started",
+      "request": {
+        "method": "POST", "url": "/provider/v1/activate",
+        "bodyPatterns": [ { "matchesJsonPath": "$[?(@.productCode =~ /FLAKY.*/)]" } ]
+      },
+      "response": { "status": 200 }
+    }
+  ]
+}

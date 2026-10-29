@@ -1,0 +1,57 @@
+# Sobe aplicação + PostgreSQL + mock do provedor:   docker compose up --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: activation
+      POSTGRES_USER: activation
+      POSTGRES_PASSWORD: activation
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U activation -d activation"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  provider-mock:
+    image: wiremock/wiremock:3.13.1
+    command: ["--port", "8089", "--global-response-templating", "--disable-banner"]
+    volumes:
+      - ./docker/wiremock/mappings:/home/wiremock/mappings:ro
+    ports:
+      - "8089:8089"
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      provider-mock:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/activation
+      DB_USERNAME: activation
+      DB_PASSWORD: activation
+      PROVIDER_BASE_URL: http://provider-mock:8089
+      PROVIDER_API_KEY: local-provider-key
+      # Somente desenvolvimento: tokens HS256 gerados por scripts/dev-token.(sh|ps1).
+      # Em produção use JWT_JWK_SET_URI (chaves assimétricas do servidor de autorização).
+      JWT_ISSUER: http://localhost/dev-issuer
+      JWT_AUDIENCE: activation-api
+      JWT_HMAC_SECRET: dev-only-secret-change-me-0123456789abcdef
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:8081:8081"   # health/métricas apenas na máquina local
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    stop_grace_period: 30s
