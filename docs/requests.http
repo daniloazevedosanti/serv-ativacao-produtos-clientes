@@ -1,0 +1,79 @@
+### Requisições de exemplo (VS Code REST Client / IntelliJ HTTP Client)
+### Gere o token com: ./scripts/dev-token.sh   (Windows: .\scripts\dev-token.ps1)
+@baseUrl = http://localhost:8080
+@token = COLE_AQUI_O_TOKEN
+
+### Criar solicitação (201 Created + Location)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "externalId": "EXT-12345",
+  "customerId": "CUST-10001",
+  "productCode": "INTERNET-500"
+}
+
+### Repetir a mesma requisição (200 OK + Idempotent-Replayed: true)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "externalId": "EXT-12345",
+  "customerId": "CUST-10001",
+  "productCode": "INTERNET-500"
+}
+
+### Mesmo externalId com outro produto (409 Conflict)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "externalId": "EXT-12345",
+  "customerId": "CUST-10001",
+  "productCode": "TV-200"
+}
+
+### Provedor recusa (400 do provedor → status FAILED)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "externalId": "EXT-INVALID-1", "customerId": "CUST-10001", "productCode": "INVALID-PLAN" }
+
+### Provedor lento (timeout → novas tentativas → FAILED após o limite)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "externalId": "EXT-SLOW-1", "customerId": "CUST-10001", "productCode": "SLOW-PLAN" }
+
+### Provedor instável (502 e depois 200 → COMPLETED com 2 tentativas)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "externalId": "EXT-FLAKY-1", "customerId": "CUST-10001", "productCode": "FLAKY-PLAN" }
+
+### Consultar (substitua pelo id retornado)
+GET {{baseUrl}}/api/v1/requests/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+### Listar com filtros
+GET {{baseUrl}}/api/v1/requests?status=COMPLETED&customerId=CUST-10001&page=0&size=20
+Authorization: Bearer {{token}}
+
+### Dados inválidos (400 Problem Details)
+POST {{baseUrl}}/api/v1/requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "externalId": "EXT 1", "productCode": "INTERNET-500" }
+
+### Health e métricas (porta de gestão)
+GET http://localhost:8081/actuator/health/readiness
+
+###
+GET http://localhost:8081/actuator/prometheus
