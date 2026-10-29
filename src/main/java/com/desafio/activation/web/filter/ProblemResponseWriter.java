@@ -36,7 +36,6 @@ public class ProblemResponseWriter {
         }
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getOutputStream(), problem);
     }
 }

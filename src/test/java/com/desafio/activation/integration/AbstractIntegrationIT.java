@@ -57,14 +57,14 @@ abstract class AbstractIntegrationIT {
     }
 
     RestClient client(String clientId) {
-        return client(TestJwt.token().clientId(clientId).bearer());
+        return clientWithBearer(TestJwt.token().clientId(clientId).bearer());
     }
 
     RestClient client(String clientId, String scope) {
-        return client(TestJwt.token().clientId(clientId).scope(scope).bearer());
+        return clientWithBearer(TestJwt.token().clientId(clientId).scope(scope).bearer());
     }
 
-    private RestClient client(String bearer) {
+    private RestClient clientWithBearer(String bearer) {
         return RestClient.builder()
                 .baseUrl("http://localhost:" + port)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, bearer)

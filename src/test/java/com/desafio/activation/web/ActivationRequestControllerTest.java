@@ -120,7 +120,7 @@ class ActivationRequestControllerTest {
 
             mvc.perform(postRequest(VALID_BODY))
                     .andExpect(status().isConflict())
-                    .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                     .andExpect(jsonPath("$.type").value("https://api.exemplo.com/problems/duplicate-external-id"))
                     .andExpect(jsonPath("$.status").value(409))
                     .andExpect(jsonPath("$.instance").value("/api/v1/requests"));
@@ -132,7 +132,7 @@ class ActivationRequestControllerTest {
                             {"externalId":"EXT 1","productCode":"%s"}
                             """.formatted("X".repeat(65))))
                     .andExpect(status().isBadRequest())
-                    .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                     .andExpect(jsonPath("$.type").value("https://api.exemplo.com/problems/validation-error"))
                     .andExpect(jsonPath("$.title").value("Dados inválidos"))
                     .andExpect(jsonPath("$.errors[?(@.field=='customerId')].message").value("é obrigatório"))
@@ -195,7 +195,7 @@ class ActivationRequestControllerTest {
             mvc.perform(get("/api/v1/requests/{id}", id)
                             .header(HttpHeaders.AUTHORIZATION, TestJwt.token().bearer()))
                     .andExpect(status().isNotFound())
-                    .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                     .andExpect(jsonPath("$.type").value("https://api.exemplo.com/problems/not-found"));
         }
 
@@ -243,7 +243,7 @@ class ActivationRequestControllerTest {
             mvc.perform(post("/api/v1/requests").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                     .andExpect(status().isUnauthorized())
                     .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, containsString("Bearer")))
-                    .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                     .andExpect(jsonPath("$.type").value("https://api.exemplo.com/problems/unauthorized"));
             verify(service, never()).create(any());
         }

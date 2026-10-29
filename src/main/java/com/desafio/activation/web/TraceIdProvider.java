@@ -20,10 +20,15 @@ public class TraceIdProvider {
         Tracer t = tracer.getIfAvailable();
         if (t != null) {
             Span span = t.currentSpan();
-            if (span != null) {
+            if (span != null && hasText(span.context().traceId())) {
                 return span.context().traceId();
             }
         }
-        return MDC.get("traceId");
+        String fromMdc = MDC.get("traceId");
+        return hasText(fromMdc) ? fromMdc : null; // tracer no-op devolve traceId vazio
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
