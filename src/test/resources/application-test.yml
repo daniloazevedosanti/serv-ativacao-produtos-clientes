@@ -1,0 +1,21 @@
+activation:
+  security:
+    jwt:
+      issuer: https://issuer.test
+      audience: activation-api
+      hmac-secret: test-secret-with-at-least-32-bytes-0123456789
+  rate-limit:
+    enabled: false
+  dispatch:
+    initial-backoff: 100ms
+    max-backoff: 1s
+    max-retry-after: 2s
+    poll-interval-ms: 200
+    reconcile-interval-ms: 3600000
+  provider:
+    connect-timeout: 500ms
+    read-timeout: 1s
+
+logging:
+  level:
+    com.desafio.activation: DEBUG
