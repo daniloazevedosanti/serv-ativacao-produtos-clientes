@@ -1,0 +1,157 @@
+spring:
+  application:
+    name: activation-service
+  threads:
+    virtual:
+      enabled: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/activation}
+    username: ${DB_USERNAME:activation}
+    password: ${DB_PASSWORD:activation}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 3000      # falhar rápido em vez de enfileirar requisições por 30s (padrão)
+      max-lifetime: 1800000
+  jpa:
+    # Desliga o Open Session in View (padrão "true" no Spring Boot): ele mantém a conexão
+    # do banco presa durante toda a requisição HTTP, inclusive enquanto serializa a resposta.
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate            # o schema é responsabilidade do Flyway
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+  mvc:
+    problemdetails:
+      enabled: true
+  task:
+    scheduling:
+      pool:
+        size: 2
+      shutdown:
+        await-termination: true
+        await-termination-period: 20s
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful                # termina as requisições em andamento antes de parar
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+
+activation:
+  provider:
+    base-url: ${PROVIDER_BASE_URL:http://localhost:8089}
+    connect-timeout: ${PROVIDER_CONNECT_TIMEOUT:1s}
+    read-timeout: ${PROVIDER_READ_TIMEOUT:3s}
+    api-key: ${PROVIDER_API_KEY:}
+  dispatch:
+    max-attempts: 5
+    initial-backoff: 2s
+    backoff-multiplier: 2.0
+    max-backoff: 5m
+    max-retry-after: 15m
+    processing-lease: 60s           # bem maior que connect-timeout + read-timeout
+    batch-size: 20
+    poll-interval-ms: 1000
+    reconcile-interval-ms: 30000
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:https://auth.exemplo.com}
+      audience: ${JWT_AUDIENCE:activation-api}
+      jwk-set-uri: ${JWT_JWK_SET_URI:}
+      hmac-secret: ${JWT_HMAC_SECRET:}
+  http:
+    max-body-size: 16KB
+  rate-limit:
+    enabled: true
+    requests-per-second: ${RATE_LIMIT_RPS:50}
+    burst: ${RATE_LIMIT_BURST:100}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true               # /actuator/health/liveness e /actuator/health/readiness
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        http.client.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING:1.0}
+  # Exportação de traces (OpenTelemetry/OTLP) é ligada definindo a variável de ambiente
+  # MANAGEMENT_OTLP_TRACING_ENDPOINT (ex.: http://otel-collector:4318/v1/traces).
+
+logging:
+  level:
+    root: INFO
+    com.desafio.activation: INFO
+
+---
+# Perfil "local": desenvolvimento na máquina (token HS256 gerado por scripts/dev-token.sh)
+spring:
+  config:
+    activate:
+      on-profile: local
+activation:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:http://localhost/dev-issuer}
+      hmac-secret: ${JWT_HMAC_SECRET:dev-only-secret-change-me-0123456789abcdef}
+
+---
+# Perfil "docker": docker-compose (app + PostgreSQL + mock do provedor)
+spring:
+  config:
+    activate:
+      on-profile: docker
+logging:
+  structured:
+    format:
+      console: ecs                  # logs em JSON (com traceId/spanId) para agregadores
+management:
+  server:
+    port: 8081                      # porta de gestão separada (não exposta publicamente)
+
+---
+# Perfil "prod": exige JWKS, logs JSON, porta de gestão separada, amostragem de tracing reduzida
+spring:
+  config:
+    activate:
+      on-profile: prod
+server:
+  forward-headers-strategy: native  # Location correto atrás do load balancer
+logging:
+  structured:
+    format:
+      console: ecs
+management:
+  server:
+    port: 8081
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING:0.1}
