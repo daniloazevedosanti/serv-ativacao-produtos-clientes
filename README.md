@@ -79,6 +79,11 @@ Exemplos prontos em [`docs/requests.http`](docs/requests.http) (VS Code REST Cli
 
 No Windows use `mvnw.cmd test` / `mvnw.cmd verify`.
 
+Sem Docker disponível, `./mvnw install -DskipITs` empacota rodando só os testes que não precisam dele.
+Se o Testcontainers acusar `Could not find a valid Docker environment`, confira se o Docker Desktop está
+aberto (`docker info` precisa responder). O arquivo `src/test/resources/docker-java.properties` fixa a
+versão da API do Docker em 1.44, exigida pelo Docker Engine 29+.
+
 ### Rodar a aplicação fora do Docker
 
 ```bash
