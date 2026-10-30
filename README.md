@@ -88,8 +88,11 @@ versão da API do Docker em 1.44, exigida pelo Docker Engine 29+.
 
 ```bash
 docker compose up -d postgres provider-mock
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+./mvnw spring-boot:run          # usa o perfil "local" automaticamente
 ```
+
+O PostgreSQL do compose fica na porta **5433** do host, para não conflitar com um PostgreSQL instalado
+na máquina (5432). O perfil `local` já aponta para ela.
 
 ---
 

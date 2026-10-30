@@ -130,6 +130,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- "mvn spring-boot:run" é desenvolvimento: usa o perfil local por padrão
+                         (sobrescreva com -Dspring-boot.run.profiles=...) -->
+                    <profiles>
+                        <profile>local</profile>
+                    </profiles>
+                </configuration>
             </plugin>
             <plugin>
                 <!-- expõe o caminho do jar do Mockito como propriedade, usada no argLine abaixo -->

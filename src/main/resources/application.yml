@@ -117,6 +117,8 @@ spring:
   config:
     activate:
       on-profile: local
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/activation}   # PostgreSQL do docker-compose
 activation:
   security:
     jwt:

@@ -7,7 +7,8 @@ services:
       POSTGRES_USER: activation
       POSTGRES_PASSWORD: activation
     ports:
-      - "5432:5432"
+      # 5433 no host: não conflita com um PostgreSQL já instalado na máquina (porta 5432)
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U activation -d activation"]
       interval: 5s
