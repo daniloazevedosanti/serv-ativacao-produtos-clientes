@@ -15,8 +15,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import java.io.IOException;
 
 /**
- * 401/403 no mesmo formato Problem Details da API. Mantém o header {@code WWW-Authenticate}
- * padrão (RFC 6750), delegando aos handlers do Spring Security antes de escrever o corpo.
+ * Delega primeiro aos handlers padrão para manter o WWW-Authenticate (RFC 6750) e só então escreve o corpo.
  */
 public class ProblemDetailsSecurityHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 

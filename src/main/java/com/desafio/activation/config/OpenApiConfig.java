@@ -8,10 +8,6 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Documentação OpenAPI (springdoc). Swagger UI em {@code /swagger-ui.html}; desligada no perfil prod.
- * O esquema "bearer-jwt" habilita o botão Authorize: cole o token (sem o prefixo "Bearer").
- */
 @Configuration(proxyBeanMethods = false)
 public class OpenApiConfig {
 

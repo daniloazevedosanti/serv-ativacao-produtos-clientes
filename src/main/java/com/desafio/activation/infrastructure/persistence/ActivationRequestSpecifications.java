@@ -5,9 +5,8 @@ import com.desafio.activation.domain.ActivationStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
- * Filtros dinâmicos via Criteria API. Evita o clássico {@code (:param is null or col = :param)},
- * que no PostgreSQL pode falhar por não conseguir inferir o tipo do parâmetro nulo e
- * atrapalha o uso de índices.
+ * Specification em vez de {@code (:p is null or col = :p)}: no PostgreSQL esse padrão falha ao inferir
+ * o tipo do parâmetro nulo e ainda atrapalha o uso dos índices.
  */
 public final class ActivationRequestSpecifications {
 

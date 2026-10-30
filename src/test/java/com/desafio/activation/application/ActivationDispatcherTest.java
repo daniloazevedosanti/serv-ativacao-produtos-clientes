@@ -70,7 +70,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenReturn(new ProviderResult.Activated());
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.COMPLETED);
         assertThat(request.getAttempts()).isEqualTo(1);
@@ -86,7 +86,7 @@ class ActivationDispatcherTest {
             return new ProviderResult.Activated();
         });
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         verify(provider).activate(any());
     }
@@ -96,7 +96,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenReturn(new ProviderResult.Rejected(400, "productCode desconhecido"));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.FAILED);
         assertThat(request.getFailureReason()).isEqualTo("PROVIDER_REJECTED: HTTP 400 - productCode desconhecido");
@@ -108,7 +108,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenReturn(new ProviderResult.TemporaryFailure("PROVIDER_HTTP_500", null));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(request.getFailureReason()).isEqualTo("PROVIDER_HTTP_500");
@@ -120,7 +120,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenReturn(new ProviderResult.TemporaryFailure("TIMEOUT", null));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PENDING);
         assertThat(request.getFailureReason()).isEqualTo("TIMEOUT");
@@ -132,7 +132,7 @@ class ActivationDispatcherTest {
         when(provider.activate(any()))
                 .thenReturn(new ProviderResult.TemporaryFailure("PROVIDER_HTTP_503", Duration.ofSeconds(40)));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getNextAttemptAt()).isEqualTo(NOW.plusSeconds(40));
     }
@@ -143,7 +143,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenReturn(new ProviderResult.TemporaryFailure("PROVIDER_HTTP_500", null));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.FAILED);
         assertThat(request.getAttempts()).isEqualTo(3);
@@ -156,7 +156,7 @@ class ActivationDispatcherTest {
         request.retryLater("x", NOW.plusSeconds(60), NOW);
         when(repository.findById(request.getId())).thenReturn(Optional.of(request));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         verify(provider, never()).activate(any());
     }
@@ -167,7 +167,7 @@ class ActivationDispatcherTest {
         when(repository.saveAndFlush(any(ActivationRequest.class)))
                 .thenThrow(new ObjectOptimisticLockingFailureException(ActivationRequest.class, request.getId()));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         verify(provider, never()).activate(any());
     }
@@ -177,7 +177,7 @@ class ActivationDispatcherTest {
         givenRepositoryWorks();
         when(provider.activate(any())).thenThrow(new IllegalStateException("bug"));
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PROCESSING);
     }
@@ -191,7 +191,7 @@ class ActivationDispatcherTest {
             return new ProviderResult.Activated();
         });
 
-        dispatcher.process(request.getId());
+        dispatcher.dispatch(request.getId());
 
         assertThat(request.getStatus()).isEqualTo(ActivationStatus.PROCESSING);
     }

@@ -5,9 +5,8 @@ import java.time.Instant;
 import java.util.function.DoubleSupplier;
 
 /**
- * Backoff exponencial com jitter ("equal jitter"): metade fixa + metade aleatória.
- * O jitter evita que muitas solicitações que falharam juntas (ex.: provedor fora do ar)
- * voltem todas no mesmo instante e derrubem o provedor de novo (thundering herd).
+ * Backoff exponencial com "equal jitter" (metade fixa, metade aleatória): solicitações que falharam
+ * juntas durante uma queda do provedor não voltam todas no mesmo segundo.
  */
 public class RetryPolicy {
 
@@ -32,16 +31,12 @@ public class RetryPolicy {
         return attemptsSoFar < maxAttempts;
     }
 
-    /**
-     * @param attemptsSoFar tentativas já realizadas (1 após a primeira falha)
-     * @param retryAfter    prazo pedido pelo provedor, ou {@code null}
-     */
     public Instant nextAttemptAt(Instant now, int attemptsSoFar, Duration retryAfter) {
         Duration delay = backoff(attemptsSoFar);
         if (retryAfter != null && !retryAfter.isNegative()) {
             Duration requested = retryAfter.compareTo(maxRetryAfter) > 0 ? maxRetryAfter : retryAfter;
             if (requested.compareTo(delay) > 0) {
-                delay = requested; // nunca antes do que o provedor pediu
+                delay = requested;
             }
         }
         return now.plus(delay);

@@ -19,7 +19,7 @@ import org.springframework.util.unit.DataSize;
 @EnableConfigurationProperties({WebFilterConfig.RequestLimitProperties.class, WebFilterConfig.RateLimitProperties.class})
 public class WebFilterConfig {
 
-    /** Depois do filtro de observação (que abre o trace) e antes de todo o resto. */
+    // Logo depois do filtro de observação, que é quem abre o trace.
     @Bean
     FilterRegistrationBean<TraceIdResponseFilter> traceIdResponseFilter(TraceIdProvider traceIdProvider) {
         var registration = new FilterRegistrationBean<>(new TraceIdResponseFilter(traceIdProvider));
@@ -27,7 +27,7 @@ public class WebFilterConfig {
         return registration;
     }
 
-    /** Antes da segurança: rejeitar corpo gigante não deve custar validação de token. */
+    // Antes da segurança: corpo gigante não deveria custar validação de token.
     @Bean
     FilterRegistrationBean<RequestBodyLimitFilter> requestBodyLimitFilter(RequestLimitProperties properties,
                                                                          ProblemResponseWriter writer) {
@@ -38,7 +38,7 @@ public class WebFilterConfig {
         return registration;
     }
 
-    /** Depois da segurança: a chave do limite é o consumidor autenticado. */
+    // Depois da segurança, porque a chave do limite é o client_id do token.
     @Bean
     @ConditionalOnProperty(name = "activation.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
     FilterRegistrationBean<RateLimitFilter> rateLimitFilter(RateLimitProperties properties,

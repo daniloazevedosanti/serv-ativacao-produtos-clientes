@@ -7,10 +7,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Rede de segurança do envio (transactional outbox: a própria tabela é a fila).
- * Mesmo que o disparo imediato pós-commit não aconteça (aplicação caiu, executor cheio),
- * toda solicitação PENDING vencida é enviada aqui. Seguro com várias instâncias: a
- * reivindicação usa lock otimista.
+ * A tabela é a outbox: o que estiver PENDING e vencido sai daqui, mesmo que o disparo pós-commit
+ * tenha se perdido (instância caiu, pool cheio). Várias instâncias podem rodar isto ao mesmo tempo;
+ * o claim com lock otimista decide quem envia.
  */
 @Component
 @ConditionalOnProperty(name = "activation.dispatch.scheduler-enabled", havingValue = "true", matchIfMissing = true)
@@ -32,7 +31,7 @@ public class ActivationScheduler {
     @Scheduled(fixedDelayString = "${activation.dispatch.poll-interval-ms:1000}")
     public void dispatchDue() {
         repository.findDueIds(time.now(), PageRequest.ofSize(properties.batchSize()))
-                .forEach(dispatcher::process);
+                .forEach(dispatcher::dispatch);
     }
 
     @Scheduled(fixedDelayString = "${activation.dispatch.reconcile-interval-ms:30000}")

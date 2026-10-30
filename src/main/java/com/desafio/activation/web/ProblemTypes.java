@@ -2,7 +2,6 @@ package com.desafio.activation.web;
 
 import java.net.URI;
 
-/** Tipos de problema (RFC 9457). Cada tipo é estável e documentável para os consumidores. */
 public final class ProblemTypes {
 
     private static final String BASE = "https://api.exemplo.com/problems/";

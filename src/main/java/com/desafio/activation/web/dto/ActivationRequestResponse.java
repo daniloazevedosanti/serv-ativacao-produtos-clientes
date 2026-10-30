@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Representação pública da solicitação (DTO separado da entidade JPA). Datas em UTC, ISO-8601. */
 public record ActivationRequestResponse(
         UUID id,
         String externalId,

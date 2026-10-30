@@ -19,17 +19,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Envia uma solicitação ao provedor e registra o resultado.
- *
- * <p>Três passos, de propósito <b>sem</b> transação aberta durante a chamada HTTP:
- * <ol>
- *   <li>transação curta: PENDING → PROCESSING ("reivindica" a solicitação; lock otimista
- *       garante que só uma instância/thread vence);</li>
- *   <li>chamada ao provedor (fora de transação: não segura conexão do pool do banco);</li>
- *   <li>transação curta: aplica o resultado (COMPLETED, FAILED ou PENDING para nova tentativa).</li>
- * </ol>
- * Se a aplicação cair entre os passos, a solicitação fica em PROCESSING e o
- * {@link #releaseIfStuck reconciliador} a devolve para a fila depois do lease.
+ * Envia uma solicitação ao provedor em três passos: claim (PENDING → PROCESSING), chamada HTTP e
+ * registro do resultado. Cada passo de banco é uma transação curta e a chamada HTTP fica fora
+ * delas, para que um provedor lento não segure conexões do pool.
  */
 @Component
 public class ActivationDispatcher {
@@ -57,100 +49,99 @@ public class ActivationDispatcher {
         this.meterRegistry = meterRegistry;
     }
 
-    public void process(UUID requestId) {
+    public void dispatch(UUID requestId) {
         try {
             claim(requestId).ifPresent(claim -> {
-                ProviderResult result = callProvider(claim.command());
-                record(requestId, claim.version(), result);
+                ProviderResult outcome = callProvider(claim.command());
+                recordOutcome(requestId, claim.version(), outcome);
             });
         } catch (RuntimeException e) {
-            // Nunca derruba o worker. A solicitação fica em PROCESSING e o reconciliador a recupera.
-            log.error("Falha inesperada processando solicitação id={}", requestId, e);
+            // A solicitação fica em PROCESSING e o reconciliador devolve para a fila depois do lease.
+            log.error("Falha inesperada ao enviar solicitação id={}", requestId, e);
         }
     }
 
-    /** Devolve para a fila (ou falha) uma solicitação em PROCESSING além do lease. */
-    public void releaseIfStuck(UUID requestId, Instant threshold) {
+    public void releaseIfStuck(UUID requestId, Instant leaseExpiredBefore) {
         try {
-            transactionTemplate.executeWithoutResult(status -> repository.findById(requestId)
-                    .filter(r -> r.getStatus() == ActivationStatus.PROCESSING)
-                    .filter(r -> r.getUpdatedAt().isBefore(threshold))
-                    .ifPresent(r -> {
-                        var now = time.now();
-                        if (retryPolicy.canRetry(r.getAttempts())) {
-                            r.retryLater("LEASE_EXPIRED", now, now);
-                        } else {
-                            r.fail("MAX_ATTEMPTS_EXCEEDED: LEASE_EXPIRED", now);
-                        }
-                        repository.saveAndFlush(r);
-                        log.warn("Solicitação presa em PROCESSING liberada id={} attempts={} status={}",
-                                r.getId(), r.getAttempts(), r.getStatus());
-                    }));
+            transactionTemplate.executeWithoutResult(tx -> repository.findById(requestId)
+                    .filter(stuck -> stuck.getStatus() == ActivationStatus.PROCESSING)
+                    .filter(stuck -> stuck.getUpdatedAt().isBefore(leaseExpiredBefore))
+                    .ifPresent(this::requeueOrGiveUp));
         } catch (OptimisticLockingFailureException e) {
-            log.debug("Solicitação id={} alterada concorrentemente durante a reconciliação", requestId);
+            log.debug("Solicitação id={} mudou durante a reconciliação; nada a fazer", requestId);
         }
+    }
+
+    private void requeueOrGiveUp(ActivationRequest stuck) {
+        var now = time.now();
+        if (retryPolicy.canRetry(stuck.getAttempts())) {
+            stuck.retryLater("LEASE_EXPIRED", now, now);
+        } else {
+            stuck.fail("MAX_ATTEMPTS_EXCEEDED: LEASE_EXPIRED", now);
+        }
+        repository.saveAndFlush(stuck);
+        log.warn("Solicitação presa em PROCESSING liberada id={} attempts={} status={}",
+                stuck.getId(), stuck.getAttempts(), stuck.getStatus());
     }
 
     private Optional<Claim> claim(UUID requestId) {
         try {
-            return transactionTemplate.execute(status -> {
+            return transactionTemplate.execute(tx -> {
                 var now = time.now();
                 return repository.findById(requestId)
-                        .filter(r -> r.isDue(now))
-                        .map(r -> {
-                            r.startProcessing(now);
-                            ActivationRequest saved = repository.saveAndFlush(r);
-                            return new Claim(saved.getVersion(), new ProviderActivationCommand(
-                                    saved.getId(), saved.getCustomerId(), saved.getProductCode()));
+                        .filter(request -> request.isDue(now))
+                        .map(request -> {
+                            request.startProcessing(now);
+                            ActivationRequest claimed = repository.saveAndFlush(request);
+                            return new Claim(claimed.getVersion(), new ProviderActivationCommand(
+                                    claimed.getId(), claimed.getCustomerId(), claimed.getProductCode()));
                         });
             });
         } catch (OptimisticLockingFailureException e) {
-            log.debug("Solicitação id={} já reivindicada por outro worker", requestId);
+            log.debug("Solicitação id={} já foi reivindicada por outro worker", requestId);
             return Optional.empty();
         }
     }
 
     private ProviderResult callProvider(ProviderActivationCommand command) {
         Timer.Sample sample = Timer.start(meterRegistry);
-        ProviderResult result = provider.activate(command);
+        ProviderResult outcome = provider.activate(command);
         sample.stop(Timer.builder("activation.provider.calls")
                 .description("Chamadas ao provedor de ativação por resultado")
-                .tag("outcome", outcomeTag(result))
+                .tag("outcome", metricTag(outcome))
                 .publishPercentileHistogram()
                 .register(meterRegistry));
-        return result;
+        return outcome;
     }
 
-    private void record(UUID requestId, long claimedVersion, ProviderResult result) {
+    private void recordOutcome(UUID requestId, long claimedVersion, ProviderResult outcome) {
         try {
-            transactionTemplate.executeWithoutResult(status -> {
+            transactionTemplate.executeWithoutResult(tx -> {
                 var request = repository.findById(requestId).orElseThrow();
                 if (request.getVersion() != claimedVersion) {
-                    // Outro processo (reconciliador) já mexeu nela; nosso resultado ficou obsoleto.
-                    // Seguro descartar: o reenvio usa a mesma chave de idempotência.
-                    log.warn("Resultado obsoleto descartado id={} result={}", requestId, result);
+                    // O reconciliador já reabriu a solicitação. Descartar é seguro: o reenvio usa a mesma Idempotency-Key.
+                    log.warn("Resultado obsoleto descartado id={} outcome={}", requestId, outcome);
                     return;
                 }
-                apply(request, result);
+                applyOutcome(request, outcome);
                 repository.saveAndFlush(request);
-                log.info("Solicitação id={} status={} attempts={} result={}",
-                        request.getId(), request.getStatus(), request.getAttempts(), result);
+                log.info("Solicitação id={} status={} attempts={} outcome={}",
+                        request.getId(), request.getStatus(), request.getAttempts(), outcome);
             });
         } catch (OptimisticLockingFailureException e) {
-            log.warn("Conflito ao registrar resultado id={}; será reconciliado", requestId);
+            log.warn("Conflito ao gravar resultado id={}; fica para a reconciliação", requestId);
         }
     }
 
-    private void apply(ActivationRequest request, ProviderResult result) {
+    private void applyOutcome(ActivationRequest request, ProviderResult outcome) {
         var now = time.now();
-        switch (result) {
+        switch (outcome) {
             case ProviderResult.Activated activated -> request.complete(now);
-            case ProviderResult.Rejected rejected -> request.fail(
-                    "PROVIDER_REJECTED: HTTP " + rejected.httpStatus() + detail(rejected.detail()), now);
+            case ProviderResult.Rejected rejected -> request.fail(rejectionReason(rejected), now);
             case ProviderResult.TemporaryFailure failure -> {
                 if (retryPolicy.canRetry(request.getAttempts())) {
-                    request.retryLater(failure.reason(),
-                            retryPolicy.nextAttemptAt(now, request.getAttempts(), failure.retryAfter()), now);
+                    var nextAttempt = retryPolicy.nextAttemptAt(now, request.getAttempts(), failure.retryAfter());
+                    request.retryLater(failure.reason(), nextAttempt, now);
                 } else {
                     request.fail("MAX_ATTEMPTS_EXCEEDED: " + failure.reason(), now);
                 }
@@ -158,15 +149,16 @@ public class ActivationDispatcher {
         }
     }
 
-    private static String detail(String detail) {
-        return detail == null || detail.isBlank() ? "" : " - " + detail;
+    private static String rejectionReason(ProviderResult.Rejected rejected) {
+        String reason = "PROVIDER_REJECTED: HTTP " + rejected.httpStatus();
+        return rejected.detail() == null || rejected.detail().isBlank() ? reason : reason + " - " + rejected.detail();
     }
 
-    private static String outcomeTag(ProviderResult result) {
-        return switch (result) {
-            case ProviderResult.Activated a -> "activated";
-            case ProviderResult.Rejected r -> "rejected";
-            case ProviderResult.TemporaryFailure t -> "temporary_failure";
+    private static String metricTag(ProviderResult outcome) {
+        return switch (outcome) {
+            case ProviderResult.Activated activated -> "activated";
+            case ProviderResult.Rejected rejected -> "rejected";
+            case ProviderResult.TemporaryFailure failure -> "temporary_failure";
         };
     }
 

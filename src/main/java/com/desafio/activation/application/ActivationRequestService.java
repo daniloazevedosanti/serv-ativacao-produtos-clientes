@@ -48,11 +48,8 @@ public class ActivationRequestService {
     }
 
     /**
-     * Cria a solicitação de forma idempotente por {@code externalId}.
-     *
-     * <p>A consulta prévia é só um atalho para o caso comum (retry do sistema de origem).
-     * Quem garante a unicidade é a constraint UNIQUE do banco: se duas requisições passarem
-     * juntas pela consulta, a segunda falha no INSERT e é tratada como repetição/conflito.
+     * A busca prévia é só atalho para o retry comum; quem garante unicidade é o UNIQUE(external_id).
+     * Duas requisições podem passar juntas pela busca, e a segunda cai no catch abaixo.
      */
     public CreationResult create(CreateActivationCommand command) {
         var existing = repository.findByExternalId(command.externalId());
@@ -65,12 +62,10 @@ public class ActivationRequestService {
         try {
             transactionTemplate.executeWithoutResult(status -> {
                 repository.saveAndFlush(request);
-                // entregue ao listener somente após o COMMIT (@TransactionalEventListener)
                 events.publishEvent(new ActivationRequestCreated(request.getId()));
             });
         } catch (DataIntegrityViolationException e) {
-            // Corrida: outra requisição inseriu o mesmo externalId entre o SELECT e o INSERT.
-            // A releitura acontece em nova transação (a anterior foi abortada pelo banco).
+            // O PostgreSQL abortou a transação do INSERT; a releitura precisa ser em outra.
             var winner = repository.findByExternalId(command.externalId()).orElseThrow(() -> e);
             log.info("Inserção concorrente detectada para externalId={}", command.externalId());
             return replayOrConflict(winner, command);
@@ -82,15 +77,15 @@ public class ActivationRequestService {
     }
 
     public ActivationRequest get(UUID id, String clientId) {
-        // Filtrar pelo dono na própria query: solicitação de outro consumidor = "não existe" (404).
+        // 404 e não 403 para solicitação de outro consumidor: não confirma que o id existe.
         return repository.findByIdAndClientId(id, clientId)
                 .orElseThrow(() -> new ActivationRequestNotFoundException(id));
     }
 
-    public Page<ActivationRequest> list(ActivationRequestFilter filter, String clientId, Pageable pageable) {
+    public Page<ActivationRequest> list(ActivationSearchCriteria criteria, String clientId, Pageable pageable) {
         Specification<ActivationRequest> spec = ownedBy(clientId)
-                .and(hasStatus(filter.status()))
-                .and(hasCustomerId(filter.customerId()));
+                .and(hasStatus(criteria.status()))
+                .and(hasCustomerId(criteria.customerId()));
         return repository.findAll(spec, pageable);
     }
 

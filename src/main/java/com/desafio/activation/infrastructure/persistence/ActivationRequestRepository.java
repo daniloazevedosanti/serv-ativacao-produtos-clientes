@@ -20,7 +20,6 @@ public interface ActivationRequestRepository
 
     Optional<ActivationRequest> findByIdAndClientId(UUID id, String clientId);
 
-    /** Solicitações prontas para (re)envio ao provedor, mais antigas primeiro. */
     @Query("""
             select r.id from ActivationRequest r
              where r.status = com.desafio.activation.domain.ActivationStatus.PENDING
@@ -29,7 +28,6 @@ public interface ActivationRequestRepository
             """)
     List<UUID> findDueIds(@Param("now") Instant now, Pageable page);
 
-    /** Solicitações presas em PROCESSING (ex.: a instância caiu durante a chamada ao provedor). */
     @Query("""
             select r.id from ActivationRequest r
              where r.status = com.desafio.activation.domain.ActivationStatus.PROCESSING

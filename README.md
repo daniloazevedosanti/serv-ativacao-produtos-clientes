@@ -242,6 +242,8 @@ recurso (`status`, `attempts`, `failureReason`). `server.error.include-stacktrac
 - Valida **assinatura** (JWKS do servidor de autorização em produção), **emissor**, **audiência**
   (`activation-api`) e **expiração**.
 - **Escopos:** `activation:write` cria; `activation:read` consulta e lista.
+- Token sem identificação do cliente (`client_id`, `azp` ou `sub`) é recusado na validação (`401`), em vez
+  de estourar como `500` dentro do controller.
 - **Isolamento entre consumidores (OWASP API1 — BOLA):** a solicitação guarda o `client_id` do token;
   consultas filtram por ele e solicitação de outro consumidor responde `404`.
 - **Credencial do provedor:** variável de ambiente injetada pelo cofre de segredos, rotação por rolling

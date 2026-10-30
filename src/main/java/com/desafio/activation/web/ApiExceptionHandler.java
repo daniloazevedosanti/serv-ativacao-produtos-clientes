@@ -26,11 +26,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Converte exceções em respostas Problem Details (RFC 9457, {@code application/problem+json}).
- * Nunca devolve stack trace nem mensagens internas; erros inesperados viram uma mensagem
- * genérica com {@code traceId} para localizar o detalhe no log.
- */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -92,7 +87,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 
-    /** Ex.: id que não é UUID, status inexistente no filtro, page não numérico. */
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
                                                         HttpStatusCode status, WebRequest request) {
@@ -109,12 +103,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             return problem(ex, HttpStatus.PAYLOAD_TOO_LARGE, ProblemTypes.PAYLOAD_TOO_LARGE,
                     "Corpo muito grande", "O corpo da requisição excede o tamanho permitido.", request);
         }
-        // Não repassamos a mensagem do Jackson: ela expõe nomes de classes internas.
+        // A mensagem do Jackson expõe nomes de classes internas.
         return problem(ex, HttpStatus.BAD_REQUEST, ProblemTypes.MALFORMED_REQUEST, "Requisição malformada",
                 "O corpo da requisição não é um JSON válido.", request);
     }
 
-    /** Ponto único por onde passam todas as respostas: adiciona o traceId e o "instance". */
+    // Toda resposta de erro do MVC passa por aqui, inclusive as que a classe base monta sozinha.
     @Override
     protected ResponseEntity<Object> createResponseEntity(@Nullable Object body, HttpHeaders headers,
                                                           HttpStatusCode statusCode, WebRequest request) {

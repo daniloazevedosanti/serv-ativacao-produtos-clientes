@@ -1,5 +1,6 @@
 package com.desafio.activation.config;
 
+import com.desafio.activation.web.AuthenticatedClient;
 import com.desafio.activation.web.filter.ProblemResponseWriter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -12,7 +13,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -21,15 +26,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
-/**
- * API protegida como OAuth 2.0 Resource Server (tokens JWT emitidos por um servidor de
- * autorização no fluxo client credentials — comunicação sistema-a-sistema).
- *
- * <ul>
- *   <li>{@code POST /api/v1/requests} exige escopo {@code activation:write}</li>
- *   <li>{@code GET  /api/v1/requests/**} exige escopo {@code activation:read}</li>
- * </ul>
- */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
@@ -41,16 +37,15 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemResponseWriter writer) throws Exception {
         var problemHandler = new ProblemDetailsSecurityHandler(writer);
         http
-                // API stateless com bearer token: não há cookie de sessão a ser explorado via CSRF
+                // Só bearer token, sem cookie de sessão: CSRF não se aplica.
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // health/métricas: em produção ficam em porta de gestão separada, não exposta publicamente
+                        // em prod o actuator fica na porta 8081, que não é publicada
                         .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/requests").hasAuthority(SCOPE_WRITE)
                         .requestMatchers(HttpMethod.GET, "/api/v1/requests", "/api/v1/requests/**")
                         .hasAuthority(SCOPE_READ)
-                        // documentação (desligada no perfil prod: as rotas passam a responder 404)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
@@ -65,15 +60,10 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Valida assinatura, expiração ({@code exp}/{@code nbf}, com tolerância de relógio),
-     * emissor ({@code iss}) e audiência ({@code aud}).
-     */
     @Bean
     JwtDecoder jwtDecoder(JwtProperties properties, Environment environment) {
         NimbusJwtDecoder decoder;
         if (hasText(properties.jwkSetUri())) {
-            // Produção: chave pública obtida (e cacheada) do JWKS; suporta rotação de chaves.
             decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwkSetUri()).build();
         } else if (hasText(properties.hmacSecret())) {
             if (environment.acceptsProfiles(Profiles.of("prod"))) {
@@ -92,8 +82,17 @@ public class SecurityConfig {
         }
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()),
-                new AudienceValidator(properties.audience())));
+                new AudienceValidator(properties.audience()),
+                SecurityConfig::requireClientIdentity));
         return decoder;
+    }
+
+    // Sem isso, um token sem client_id/azp/sub só falharia dentro do controller, como 500.
+    private static OAuth2TokenValidatorResult requireClientIdentity(Jwt jwt) {
+        return AuthenticatedClient.find(jwt).isPresent()
+                ? OAuth2TokenValidatorResult.success()
+                : OAuth2TokenValidatorResult.failure(new OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN,
+                "O token não identifica o cliente (client_id, azp ou sub)", null));
     }
 
     private static boolean hasText(String value) {

@@ -2,22 +2,26 @@ package com.desafio.activation.web;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.util.Optional;
+import java.util.stream.Stream;
+
 /**
- * Identifica o sistema consumidor a partir do access token (fluxo client credentials).
- * Ordem: {@code client_id} (RFC 9068), {@code azp} (OIDC/Keycloak) e, por último, {@code sub}.
+ * client_id é o claim da RFC 9068; azp cobre Keycloak/OIDC; sub é o último recurso.
  */
 public final class AuthenticatedClient {
 
     private AuthenticatedClient() {
     }
 
+    public static Optional<String> find(Jwt jwt) {
+        return Stream.of("client_id", "azp", "sub")
+                .map(jwt::getClaimAsString)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst();
+    }
+
+    /** O decoder já recusa tokens sem identificação, então aqui ela sempre existe. */
     public static String idOf(Jwt jwt) {
-        for (String claim : new String[]{"client_id", "azp", "sub"}) {
-            String value = jwt.getClaimAsString(claim);
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        throw new IllegalStateException("Token sem identificação do cliente");
+        return find(jwt).orElseThrow(() -> new IllegalStateException("Token sem identificação do cliente"));
     }
 }

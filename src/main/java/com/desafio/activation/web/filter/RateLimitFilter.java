@@ -18,12 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /**
- * Limite de taxa por consumidor (token bucket). Roda depois do Spring Security para usar o
- * {@code client_id} do token como chave.
- *
- * <p>Limitação consciente: o estado é por instância (com N instâncias o limite efetivo é N×).
- * Em produção o lugar natural é o API Gateway ou um contador compartilhado (ex.: Redis);
- * aqui ele protege a instância contra um consumidor descontrolado.
+ * Token bucket por client_id, em memória: com N instâncias o limite efetivo é N vezes maior. Serve para
+ * proteger a instância; o limite de verdade fica no API Gateway. O mapa não precisa de expiração porque
+ * os client_ids são os clientes cadastrados no servidor de autorização, um conjunto pequeno e fechado.
  */
 public class RateLimitFilter extends OncePerRequestFilter {
 

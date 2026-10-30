@@ -10,9 +10,8 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Disparo imediato após o COMMIT (baixa latência no caminho feliz, sem esperar o polling).
- * Roda em um pool limitado (bulkhead): se o pool estiver cheio, a tarefa é descartada sem
- * prejuízo, pois o {@link ActivationScheduler} pegará a solicitação no próximo ciclo.
+ * Atalho para o caminho feliz não esperar o polling. Se o pool estiver cheio, descartar é seguro:
+ * o {@link ActivationScheduler} pega a solicitação no ciclo seguinte.
  */
 @Component
 public class ActivationRequestCreatedListener {
@@ -31,7 +30,7 @@ public class ActivationRequestCreatedListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCreated(ActivationRequestCreated event) {
         try {
-            executor.execute(() -> dispatcher.process(event.requestId()));
+            executor.execute(() -> dispatcher.dispatch(event.requestId()));
         } catch (TaskRejectedException e) {
             log.debug("Executor cheio; solicitação id={} será enviada pelo agendador", event.requestId());
         }

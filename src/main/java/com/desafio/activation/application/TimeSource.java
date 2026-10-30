@@ -7,8 +7,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Instante atual truncado em milissegundos. O PostgreSQL guarda microssegundos e a JVM gera
- * nanossegundos: sem truncar, o {@code createdAt} devolvido no POST seria diferente do lido no GET.
+ * Trunca em milissegundos: o PostgreSQL guarda micro e a JVM gera nano, e sem isso o createdAt
+ * devolvido no POST não bate com o lido no GET.
  */
 @Component
 public class TimeSource {

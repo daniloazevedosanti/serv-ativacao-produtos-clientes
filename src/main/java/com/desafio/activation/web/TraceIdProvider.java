@@ -6,7 +6,6 @@ import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-/** traceId da requisição atual (o mesmo que aparece nos logs), para devolver ao consumidor. */
 @Component
 public class TraceIdProvider {
 
@@ -25,7 +24,8 @@ public class TraceIdProvider {
             }
         }
         String fromMdc = MDC.get("traceId");
-        return hasText(fromMdc) ? fromMdc : null; // tracer no-op devolve traceId vazio
+        // o tracer no-op (testes sem observabilidade) devolve traceId vazio, não nulo
+        return hasText(fromMdc) ? fromMdc : null;
     }
 
     private static boolean hasText(String value) {

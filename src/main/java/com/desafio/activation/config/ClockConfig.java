@@ -8,7 +8,6 @@ import java.time.Clock;
 @Configuration(proxyBeanMethods = false)
 public class ClockConfig {
 
-    /** Relógio injetável: facilita testes de tempo (backoff, lease) e garante UTC. */
     @Bean
     Clock clock() {
         return Clock.systemUTC();

@@ -14,8 +14,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * Gauge "activation.requests" por status. Atualizado periodicamente (e não a cada scrape)
- * para não colocar um COUNT no caminho do Prometheus.
+ * Atualizado em intervalo fixo, e não a cada scrape, para não pôr um COUNT no caminho do Prometheus.
  */
 @Component
 @ConditionalOnProperty(name = "activation.dispatch.scheduler-enabled", havingValue = "true", matchIfMissing = true)

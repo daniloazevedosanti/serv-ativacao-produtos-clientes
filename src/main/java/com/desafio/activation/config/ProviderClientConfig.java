@@ -13,11 +13,7 @@ import java.net.http.HttpClient;
 @Configuration(proxyBeanMethods = false)
 public class ProviderClientConfig {
 
-    /**
-     * Usa o {@link RestClient.Builder} do Spring Boot: já vem com observabilidade
-     * (métrica {@code http.client.requests} e propagação do header {@code traceparent}).
-     * Timeouts explícitos: sem eles, uma lentidão do provedor seguraria threads indefinidamente.
-     */
+    // Builder do Boot (e não RestClient.create) para herdar métricas e propagação do traceparent.
     @Bean
     public ActivationProvider activationProvider(RestClient.Builder builder, ProviderProperties properties) {
         var httpClient = HttpClient.newBuilder()

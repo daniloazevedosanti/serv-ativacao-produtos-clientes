@@ -1,8 +1,7 @@
 package com.desafio.activation.application;
 
 /**
- * O externalId já pertence a outra solicitação com conteúdo diferente (ou de outro consumidor).
- * A mensagem é propositalmente genérica: não revela dados da solicitação existente.
+ * Mensagem genérica de propósito: o externalId pode pertencer a outro consumidor.
  */
 public class DuplicateExternalIdException extends RuntimeException {
 

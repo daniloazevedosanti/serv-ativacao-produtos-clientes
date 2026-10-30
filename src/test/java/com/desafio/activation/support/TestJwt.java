@@ -24,6 +24,7 @@ public final class TestJwt {
     public static final String READ_WRITE = "activation:read activation:write";
 
     private String clientId = "crm-system";
+    private boolean anonymous;
     private String scope = READ_WRITE;
     private String issuer = ISSUER;
     private String audience = AUDIENCE;
@@ -39,6 +40,12 @@ public final class TestJwt {
 
     public TestJwt clientId(String clientId) {
         this.clientId = clientId;
+        return this;
+    }
+
+    /** Token assinado e válido, mas sem client_id, azp nem sub. */
+    public TestJwt withoutClientIdentity() {
+        this.anonymous = true;
         return this;
     }
 
@@ -70,9 +77,9 @@ public final class TestJwt {
     public String encode() {
         var claims = new JWTClaimsSet.Builder()
                 .issuer(issuer)
-                .subject(clientId)
+                .subject(anonymous ? null : clientId)
                 .audience(audience)
-                .claim("client_id", clientId)
+                .claim("client_id", anonymous ? null : clientId)
                 .claim("scope", scope)
                 .issueTime(Date.from(Instant.now().minusSeconds(5)))
                 .expirationTime(Date.from(expiresAt))

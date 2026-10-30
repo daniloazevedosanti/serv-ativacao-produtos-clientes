@@ -9,15 +9,8 @@ import org.springframework.validation.annotation.Validated;
 import java.time.Duration;
 
 /**
- * Política de envio ao provedor.
- *
- * @param maxAttempts      número máximo de tentativas antes de marcar FAILED
- * @param initialBackoff   espera antes da 2ª tentativa
- * @param backoffMultiplier crescimento exponencial da espera
- * @param maxBackoff       teto da espera calculada
- * @param maxRetryAfter    teto para o {@code Retry-After} informado pelo provedor
- * @param processingLease  tempo após o qual uma solicitação em PROCESSING é considerada "presa"
- * @param batchSize        quantas solicitações o worker busca por ciclo
+ * {@code maxRetryAfter} evita que um Retry-After absurdo do provedor congele a fila;
+ * {@code processingLease} precisa ser bem maior que connect + read timeout.
  */
 @Validated
 @ConfigurationProperties("activation.dispatch")

@@ -22,11 +22,8 @@ public class DispatchConfig {
                 p.maxBackoff(), p.maxRetryAfter(), () -> ThreadLocalRandom.current().nextDouble());
     }
 
-    /**
-     * Pool limitado para chamadas ao provedor: protege o provedor e a própria aplicação.
-     * O decorator propaga o contexto (traceId) da requisição HTTP para a thread do envio,
-     * então o mesmo traceId aparece no log da API e da chamada ao provedor.
-     */
+    // Pool pequeno e fila limitada protegem o provedor; o decorator leva o traceId da requisição
+    // HTTP para a thread do envio.
     @Bean
     ThreadPoolTaskExecutor providerDispatchExecutor() {
         var executor = new ThreadPoolTaskExecutor();

@@ -6,10 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Corpo do {@code POST /api/v1/requests}.
- *
- * <p>Regras: obrigatórios, até 64 caracteres, começam com letra/dígito e aceitam apenas
- * letras, dígitos e {@code . _ : -} (sem espaços). Ex.: {@code EXT-12345}, {@code INTERNET-500}.
+ * Formato restrito de propósito: os três campos viram chave de busca, header e log.
  */
 public record CreateActivationRequest(
         @Schema(description = "Identificador da solicitação no sistema de origem (chave de idempotência)",

@@ -10,9 +10,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Devolve o traceId no header {@code X-Trace-Id} de toda resposta (sucesso ou erro):
- * o consumidor informa esse valor ao suporte e achamos todos os logs da requisição,
- * inclusive os da chamada ao provedor.
+ * Com o X-Trace-Id em mãos, o suporte acha todos os logs da requisição, inclusive os da chamada ao provedor.
  */
 public class TraceIdResponseFilter extends OncePerRequestFilter {
 

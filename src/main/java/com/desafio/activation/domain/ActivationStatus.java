@@ -1,8 +1,6 @@
 package com.desafio.activation.domain;
 
 /**
- * Estados de uma solicitação de ativação.
- *
  * <pre>
  *   PENDING ──► PROCESSING ──► COMPLETED   (terminal)
  *      ▲            │

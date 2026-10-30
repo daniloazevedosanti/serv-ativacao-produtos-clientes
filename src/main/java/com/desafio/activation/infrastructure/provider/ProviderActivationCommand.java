@@ -3,8 +3,7 @@ package com.desafio.activation.infrastructure.provider;
 import java.util.UUID;
 
 /**
- * Dados enviados ao provedor. O {@code requestId} também é usado como chave de idempotência:
- * se reenviarmos após um timeout, o provedor reconhece a mesma operação e não ativa duas vezes.
+ * O id da solicitação vira a Idempotency-Key: é o mesmo em todas as tentativas, inclusive após timeout.
  */
 public record ProviderActivationCommand(UUID requestId, String customerId, String productCode) {
 

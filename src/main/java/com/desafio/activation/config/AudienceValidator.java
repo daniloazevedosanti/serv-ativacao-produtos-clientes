@@ -6,7 +6,7 @@ import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-/** Exige que o token tenha sido emitido para esta API (claim {@code aud}). */
+/** Sem isso, um token emitido para outra API do mesmo emissor passaria aqui. */
 public class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
     private final String audience;

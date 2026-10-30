@@ -15,9 +15,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Limita o tamanho do corpo das requisições. Rejeita cedo pelo {@code Content-Length} e,
- * para corpos enviados em chunks (sem Content-Length), conta os bytes lidos e interrompe
- * a leitura ao passar do limite — senão bastaria omitir o header para burlar o controle.
+ * Olhar só o Content-Length não basta: um corpo em chunks não tem o header. Por isso a leitura
+ * também é contada.
  */
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
 

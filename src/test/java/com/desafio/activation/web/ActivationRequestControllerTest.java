@@ -1,6 +1,6 @@
 package com.desafio.activation.web;
 
-import com.desafio.activation.application.ActivationRequestFilter;
+import com.desafio.activation.application.ActivationSearchCriteria;
 import com.desafio.activation.application.ActivationRequestNotFoundException;
 import com.desafio.activation.application.ActivationRequestService;
 import com.desafio.activation.application.CreateActivationCommand;
@@ -209,7 +209,7 @@ class ActivationRequestControllerTest {
         @Test
         void listagem_paginada_com_filtros() throws Exception {
             var request = sample();
-            when(service.list(eq(new ActivationRequestFilter(ActivationStatus.PENDING, "CUST-10001")),
+            when(service.list(eq(new ActivationSearchCriteria(ActivationStatus.PENDING, "CUST-10001")),
                     eq("crm-system"), any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of(request), PageRequest.of(0, 10), 1));
 
@@ -276,6 +276,13 @@ class ActivationRequestControllerTest {
         void token_de_outro_emissor_responde_401() throws Exception {
             mvc.perform(get("/api/v1/requests/{id}", UUID.randomUUID())
                             .header(HttpHeaders.AUTHORIZATION, TestJwt.token().issuer("https://evil.test").bearer()))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void token_sem_identificacao_do_cliente_responde_401_e_nao_500() throws Exception {
+            mvc.perform(get("/api/v1/requests/{id}", UUID.randomUUID())
+                            .header(HttpHeaders.AUTHORIZATION, TestJwt.token().withoutClientIdentity().bearer()))
                     .andExpect(status().isUnauthorized());
         }
 

@@ -1,6 +1,6 @@
 package com.desafio.activation.web;
 
-import com.desafio.activation.application.ActivationRequestFilter;
+import com.desafio.activation.application.ActivationSearchCriteria;
 import com.desafio.activation.application.ActivationRequestService;
 import com.desafio.activation.application.CreateActivationCommand;
 import com.desafio.activation.application.CreationResult;
@@ -56,11 +56,6 @@ public class ActivationRequestController {
         this.service = service;
     }
 
-    /**
-     * 201 + Location: solicitação criada.
-     * 200 + Location + {@code Idempotent-Replayed: true}: mesmo externalId e mesmo conteúdo (retry).
-     * 409: mesmo externalId com conteúdo diferente.
-     */
     @PostMapping
     @Operation(summary = "Cria uma solicitação de ativação",
             description = """
@@ -120,7 +115,7 @@ public class ActivationRequestController {
             @Max(100) int size,
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        var result = service.list(new ActivationRequestFilter(status, customerId), AuthenticatedClient.idOf(jwt),
+        var result = service.list(new ActivationSearchCriteria(status, customerId), AuthenticatedClient.idOf(jwt),
                 pageable);
         return PageResponse.from(result, ActivationRequestResponse::from);
     }

@@ -13,14 +13,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Solicitação de ativação de produto.
- *
- * <p>O status só muda pelos métodos de domínio ({@link #startProcessing}, {@link #complete},
- * {@link #fail}, {@link #retryLater}); não há setters livres. Isso garante, por exemplo,
- * que {@code COMPLETED} nunca volte a {@code PROCESSING}.
- *
- * <p>{@code @Version} protege contra escrita concorrente (lock otimista): se duas instâncias
- * tentarem alterar a mesma solicitação, só a primeira grava.
+ * Status só muda pelos métodos de domínio; não há setter de status de propósito.
  */
 @Entity
 @Table(name = "activation_request")
@@ -40,7 +33,7 @@ public class ActivationRequest {
     @Column(name = "product_code", nullable = false, updatable = false, length = 64)
     private String productCode;
 
-    /** Sistema consumidor (OAuth client) que criou a solicitação — usado para isolamento (BOLA). */
+    /** client_id do token que criou a solicitação; toda consulta filtra por ele (BOLA). */
     @Column(name = "client_id", nullable = false, updatable = false, length = 128)
     private String clientId;
 
@@ -63,16 +56,12 @@ public class ActivationRequest {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    /**
-     * Wrapper (e não primitivo) de propósito: com id atribuído pela aplicação, o Spring Data
-     * usa {@code version == null} para saber que a entidade é nova e faz {@code persist}
-     * em vez de {@code merge} (evita um SELECT extra a cada criação).
-     */
+    // Long e não long: com id gerado na aplicação, version == null é o que faz o Spring Data
+    // chamar persist em vez de merge (sem SELECT extra por criação).
     @Version
     private Long version;
 
     protected ActivationRequest() {
-        // JPA
     }
 
     private ActivationRequest(UUID id, String externalId, String customerId, String productCode,
@@ -94,28 +83,25 @@ public class ActivationRequest {
         return new ActivationRequest(UUID.randomUUID(), externalId, customerId, productCode, clientId, now);
     }
 
-    /** PENDING → PROCESSING. Conta uma tentativa de envio ao provedor. */
     public void startProcessing(Instant now) {
         transitionTo(ActivationStatus.PROCESSING, now);
         this.attempts++;
         this.nextAttemptAt = null;
     }
 
-    /** PROCESSING → COMPLETED. */
     public void complete(Instant now) {
         transitionTo(ActivationStatus.COMPLETED, now);
         this.failureReason = null;
         this.nextAttemptAt = null;
     }
 
-    /** PROCESSING → FAILED (definitivo). */
     public void fail(String reason, Instant now) {
         transitionTo(ActivationStatus.FAILED, now);
         this.failureReason = truncate(reason);
         this.nextAttemptAt = null;
     }
 
-    /** PROCESSING → PENDING: falha temporária, nova tentativa agendada para {@code nextAttemptAt}. */
+    /** Falha temporária volta para PENDING: assim PROCESSING sempre significa "chamada em andamento". */
     public void retryLater(String reason, Instant nextAttemptAt, Instant now) {
         transitionTo(ActivationStatus.PENDING, now);
         this.failureReason = truncate(reason);
@@ -126,7 +112,6 @@ public class ActivationRequest {
         return status == ActivationStatus.PENDING && nextAttemptAt != null && !nextAttemptAt.isAfter(now);
     }
 
-    /** Mesmo conteúdo de negócio? Usado para diferenciar retry legítimo de conflito. */
     public boolean hasSameContent(String customerId, String productCode, String clientId) {
         return this.customerId.equals(customerId)
                 && this.productCode.equals(productCode)
