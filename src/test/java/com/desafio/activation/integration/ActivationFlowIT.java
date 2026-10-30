@@ -97,9 +97,9 @@ class ActivationFlowIT extends AbstractIntegrationIT {
 
     @Test
     void timeout_e_retentado_sem_duplicar_ativacao() {
-        // 1ª chamada demora mais que o read-timeout (1s nos testes); 2ª responde rápido
+        // 1ª chamada demora mais que o read-timeout (3s nos testes); 2ª responde rápido
         PROVIDER.stubFor(post(PATH).inScenario("lento").whenScenarioStateIs(Scenario.STARTED)
-                .willReturn(ok().withFixedDelay(2_000)).willSetStateTo("normal"));
+                .willReturn(ok().withFixedDelay(5_000)).willSetStateTo("normal"));
         PROVIDER.stubFor(post(PATH).inScenario("lento").whenScenarioStateIs("normal").willReturn(ok()));
 
         var id = create("EXT-4", "INTERNET-500").getBody().get("id").asText();

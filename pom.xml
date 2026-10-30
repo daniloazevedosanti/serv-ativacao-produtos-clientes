@@ -132,10 +132,25 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
+                <!-- expõe o caminho do jar do Mockito como propriedade, usada no argLine abaixo -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <!-- testes unitários e de slice (sem Docker) -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <!-- Mockito como agente explícito: o JDK 21+ avisa (e versões futuras bloquearão)
+                         o carregamento dinâmico de agentes -->
+                    <argLine>-javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
                     <excludes>
                         <exclude>**/*IT.java</exclude>
                     </excludes>
@@ -145,6 +160,9 @@
                 <!-- testes de integração (*IT) com Testcontainers, executados no "verify" -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>-javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

@@ -13,8 +13,9 @@ activation:
     poll-interval-ms: 200
     reconcile-interval-ms: 3600000
   provider:
-    connect-timeout: 500ms
-    read-timeout: 1s
+    # folgados para não confundir aquecimento da JVM/WireMock com timeout (o que mudaria "attempts")
+    connect-timeout: 2s
+    read-timeout: 3s
 
 logging:
   level:

@@ -37,17 +37,24 @@ class HttpActivationProviderTest {
 
     private static final String PATH = "/provider/v1/activate";
 
+    /**
+     * Folgado de propósito: a 1ª chamada da classe paga o aquecimento da JVM, do HttpClient e do
+     * WireMock (passa de 1 s em máquinas mais lentas). Só o teste de timeout usa um prazo curto.
+     */
+    private static final Duration NORMAL_READ_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration SHORT_READ_TIMEOUT = Duration.ofMillis(300);
+
     private ActivationProvider provider;
     private ProviderActivationCommand command;
 
     @BeforeEach
     void setUp() {
-        provider = providerFor(URI.create(wiremock.baseUrl()), Duration.ofMillis(300), "secret-key");
+        provider = providerFor(URI.create(wiremock.baseUrl()), NORMAL_READ_TIMEOUT, "secret-key");
         command = new ProviderActivationCommand(UUID.randomUUID(), "CUST-10001", "INTERNET-500");
     }
 
     private static ActivationProvider providerFor(URI baseUrl, Duration readTimeout, String apiKey) {
-        var properties = new ProviderProperties(baseUrl, Duration.ofMillis(300), readTimeout, apiKey);
+        var properties = new ProviderProperties(baseUrl, Duration.ofSeconds(2), readTimeout, apiKey);
         return new ProviderClientConfig().activationProvider(RestClient.builder(), properties);
     }
 
@@ -119,16 +126,17 @@ class HttpActivationProviderTest {
 
     @Test
     void timeout_de_leitura_e_temporario() {
-        wiremock.stubFor(post(PATH).willReturn(ok().withFixedDelay(1_500)));
+        wiremock.stubFor(post(PATH).willReturn(ok().withFixedDelay(2_000)));
+        var impatient = providerFor(URI.create(wiremock.baseUrl()), SHORT_READ_TIMEOUT, null);
 
-        var result = provider.activate(command);
+        var result = impatient.activate(command);
 
         assertThat(result).isEqualTo(new ProviderResult.TemporaryFailure("TIMEOUT", null));
     }
 
     @Test
     void provedor_fora_do_ar_e_falha_de_conexao() {
-        var offline = providerFor(URI.create("http://localhost:1"), Duration.ofMillis(300), null);
+        var offline = providerFor(URI.create("http://localhost:1"), NORMAL_READ_TIMEOUT, null);
 
         var result = offline.activate(command);
 
