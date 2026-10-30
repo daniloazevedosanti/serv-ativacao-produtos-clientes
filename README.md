@@ -5,7 +5,7 @@ em um provedor externo.
 
 **Stack:** Java 21 · Spring Boot 3.5 (Spring MVC, Spring Data JPA/Hibernate, Spring Security) ·
 PostgreSQL 16 + Flyway · Maven · JUnit 5, Mockito, AssertJ, Testcontainers, WireMock, Awaitility, ArchUnit ·
-Micrometer/Prometheus/OpenTelemetry · Docker · GitHub Actions.
+Micrometer/Prometheus/OpenTelemetry · springdoc-openapi (Swagger UI) · Docker · GitHub Actions.
 
 > Princípio adotado: o enunciado repete que não quer arquitetura excessivamente complexa. A solução é um
 > único serviço em camadas simples (`web → application → infrastructure → domain`), sem fila externa,
@@ -23,9 +23,10 @@ Micrometer/Prometheus/OpenTelemetry · Docker · GitHub Actions.
 5. [Cenário de análise (item 10)](#cenário-de-análise-item-10)
 6. [Produção](#produção)
 7. [Microsserviços e cloud](#microsserviços-e-cloud)
-8. [Pontos pendentes](#pontos-pendentes)
-9. [Melhorias futuras](#melhorias-futuras)
-10. [Uso de IA](#uso-de-ia)
+8. [Extras (além do enunciado)](#extras-além-do-enunciado)
+9. [Pontos pendentes](#pontos-pendentes)
+10. [Melhorias futuras](#melhorias-futuras)
+11. [Uso de IA](#uso-de-ia)
 
 ---
 
@@ -43,6 +44,7 @@ docker compose up --build
 |---|---|
 | API | http://localhost:8080 |
 | Health / métricas (porta de gestão) | http://localhost:8081/actuator/health/readiness · `/actuator/prometheus` |
+| Swagger UI (documentação interativa) | http://localhost:8080/swagger-ui.html · contrato em `/v3/api-docs` |
 | Mock do provedor (WireMock) | http://localhost:8089 |
 
 Gere um token de desenvolvimento e chame a API:
@@ -69,6 +71,9 @@ O mock do provedor reage ao `productCode`, para exercitar cada cenário:
 | `FLAKY` | `502` e depois `200` | `COMPLETED` com 2 tentativas |
 
 Exemplos prontos em [`docs/requests.http`](docs/requests.http) (VS Code REST Client / IntelliJ).
+
+Ou pelo **Swagger UI** (extra): http://localhost:8080/swagger-ui.html — passo a passo em
+[Como usar o Swagger](#como-usar-o-swagger).
 
 ### Testes
 
@@ -404,6 +409,37 @@ negócio; e manter um teste de carga com provedor lento no pipeline/homologaçã
 
 ---
 
+## Extras (além do enunciado)
+
+Itens que o desafio não pedia e que adicionei por facilitarem a avaliação, o uso ou a operação do serviço:
+
+| Extra | O que entrega | Onde |
+|---|---|---|
+| **Swagger UI / OpenAPI 3** | Documentação interativa da API com exemplos, todos os códigos de resposta (incluindo Problem Details) e botão **Authorize** para JWT. Desligada no perfil `prod`, para o contrato não ficar exposto publicamente. | http://localhost:8080/swagger-ui.html · `/v3/api-docs` · `OpenApiConfig`, anotações no controller |
+| Mock do provedor com cenários | WireMock no `docker-compose` que simula sucesso, 400, 500, lentidão/timeout, 503 com `Retry-After` e instabilidade, escolhidos pelo `productCode`. | `docker/wiremock/mappings` |
+| Scripts de token de desenvolvimento | Geram JWT HS256 válido para testar a API localmente (Bash e PowerShell). | `scripts/dev-token.*` |
+| Requisições de exemplo | Arquivo pronto para VS Code REST Client / IntelliJ HTTP Client. | `docs/requests.http` |
+| ADRs | Registro das decisões de arquitetura com contexto, alternativas e consequências. | `docs/adr` |
+| Testes de arquitetura | ArchUnit garante dependências entre camadas e ausência de ciclos a cada build. | `ArchitectureTest` |
+| Proteções de borda | Limite de tamanho de corpo (inclusive em chunks) e rate limit por consumidor com `429` + `Retry-After`. | `web/filter` |
+| Rastreabilidade para o consumidor | `X-Trace-Id` em toda resposta e `traceId` no corpo de erro. | `TraceIdResponseFilter`, `ApiExceptionHandler` |
+| Reconciliação de solicitações presas | Solicitações em `PROCESSING` além do lease voltam para a fila (instância que caiu no meio da chamada). | `ActivationScheduler`, `ActivationDispatcher` |
+
+### Como usar o Swagger
+
+1. Suba a aplicação (`docker compose up --build` ou `./mvnw spring-boot:run`) e abra
+   http://localhost:8080/swagger-ui.html.
+2. Gere um token: `./scripts/dev-token.sh` (Windows: `.\scripts\dev-token.ps1`).
+3. Clique em **Authorize**, cole o token **sem** o prefixo `Bearer` e confirme. O token fica salvo ao
+   recarregar a página.
+4. Abra um endpoint → **Try it out** → **Execute**. O `POST` já vem preenchido com um exemplo válido;
+   copie o `id` da resposta e consulte no `GET /api/v1/requests/{id}` para ver o status mudar para `COMPLETED`.
+
+Para testar sem permissão de escrita, gere um token só de leitura:
+`./scripts/dev-token.sh crm-system "activation:read"` (o `POST` passa a responder `403`).
+
+---
+
 ## Pontos pendentes
 
 O que deliberadamente não foi implementado e como eu faria:
@@ -414,8 +450,6 @@ O que deliberadamente não foi implementado e como eu faria:
   ambiente leve. Em produção: Keycloak/Entra ID/Cognito com JWKS (`JWT_JWK_SET_URI`), já suportado pelo código.
 - **Rate limit distribuído** — hoje é por instância; em produção ficaria no API Gateway (ou Redis).
 - **Eventos para outros serviços** — descrito acima (outbox + tópico).
-- **Documentação OpenAPI/Swagger** — substituída por esta seção e por `docs/requests.http`; seria
-  `springdoc-openapi` com os exemplos e Problem Details documentados.
 - **Manifestos Kubernetes/Terraform** — fora do escopo pedido; descritos na seção Produção.
 
 ## Melhorias futuras

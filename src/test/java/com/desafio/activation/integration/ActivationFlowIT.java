@@ -204,6 +204,19 @@ class ActivationFlowIT extends AbstractIntegrationIT {
     }
 
     @Test
+    void documentacao_openapi_e_swagger_ui_disponiveis_sem_autenticacao() {
+        var anonymous = org.springframework.web.client.RestClient.create("http://localhost:" + port);
+
+        var apiDocs = anonymous.get().uri("/v3/api-docs").retrieve().toEntity(String.class);
+        var swaggerUi = anonymous.get().uri("/swagger-ui/index.html")
+                .exchange((req, res) -> res.getStatusCode());
+
+        assertThat(apiDocs.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(apiDocs.getBody()).contains("/api/v1/requests", "bearer-jwt", "EXT-12345");
+        assertThat(swaggerUi).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void health_de_liveness_e_readiness_disponiveis_sem_autenticacao() {
         var anonymous = org.springframework.web.client.RestClient.create("http://localhost:" + port);
 

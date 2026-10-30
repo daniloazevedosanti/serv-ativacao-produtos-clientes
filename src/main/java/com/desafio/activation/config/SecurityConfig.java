@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/requests").hasAuthority(SCOPE_WRITE)
                         .requestMatchers(HttpMethod.GET, "/api/v1/requests", "/api/v1/requests/**")
                         .hasAuthority(SCOPE_READ)
+                        // documentação (desligada no perfil prod: as rotas passam a responder 404)
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth

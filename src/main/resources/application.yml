@@ -78,6 +78,16 @@ activation:
     requests-per-second: ${RATE_LIMIT_RPS:50}
     burst: ${RATE_LIMIT_BURST:100}
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true     # mantém o token ao recarregar a página
+  # documenta só as respostas declaradas nos endpoints (não replica cada @ExceptionHandler em tudo)
+  override-with-generic-response: false
+  default-produces-media-type: application/json
+
 management:
   endpoints:
     web:
@@ -147,6 +157,11 @@ spring:
       on-profile: prod
 server:
   forward-headers-strategy: native  # Location correto atrás do load balancer
+springdoc:
+  api-docs:
+    enabled: false                  # contrato não fica exposto publicamente em produção
+  swagger-ui:
+    enabled: false
 logging:
   structured:
     format:
